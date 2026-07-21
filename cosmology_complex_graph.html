@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>رسم معقد للانفجار العظيم</title>
+  <style>
+    :root {
+      --ink: #111827;
+      --muted: #4b5563;
+      --accent: #1d4ed8;
+      --accent2: #06b6d4;
+      --accent3: #dc2626;
+      --grid: rgba(17,24,39,0.08);
+      --panel: #ffffff;
+    }
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      background: #f8fafc;
+      color: var(--ink);
+      font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+      overflow: hidden;
+    }
+    canvas { display:block; width:100vw; height:100vh; background:#f8fafc; }
+    .hud {
+      position: fixed;
+      top: 14px;
+      left: 14px;
+      right: 14px;
+      pointer-events: none;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .titlebox, .equationbox {
+      background: rgba(255,255,255,0.9);
+      border: 1px solid rgba(17,24,39,0.08);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+      border-radius: 16px;
+      backdrop-filter: blur(6px);
+    }
+    .titlebox { padding: 14px 16px; max-width: 420px; }
+    .titlebox h1 { margin: 0 0 6px; font-size: 20px; }
+    .titlebox p { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.6; }
+    .equationbox {
+      padding: 12px 14px;
+      min-width: 280px;
+      max-width: 340px;
+      font-size: 12.5px;
+      line-height: 1.8;
+      color: var(--ink);
+    }
+    .equationbox .label { font-weight: 700; margin-bottom: 4px; color: var(--accent); }
+    .chip { display:inline-block; padding:4px 8px; border-radius:999px; background:#111827; color:white; font-size:11px; margin-top:6px; }
+  </style>
+</head>
+<body>
+  <canvas id="viz"></canvas>
+  <div class="hud">
+    <div class="titlebox">
+      <h1>الانفجار العظيم: معادلات وعلوم مرئية</h1>
+      <p>رسم معقد يدمج توسع الكون، الإشعاع الحراري للمجموعة الشمسية/الكونية، وعدم التماثل البايروني، مع طبقات تحليل علمية متراكبة على خلفية بيضاء.</p>
+    </div>
+    <div class="equationbox">
+      <div class="label">المعادلات والظواهر</div>
+      <div>H² = (8πG/3)ρ − kc²/a² + Λc²/3</div>
+      <div>T(z) = T₀(1+z)</div>
+      <div>η = (n_B − n_B̄)/n_γ ≈ 6 × 10⁻¹⁰</div>
+      <div class="chip">Sakharov + CP violation + out-of-equilibrium</div>
+    </div>
+  </div>
+  <script>
+    const canvas = document.getElementById('viz');
+    const ctx = canvas.getContext('2d');
+    let w = 0, h = 0;
+    let time = 0;
+
+    function resize() {
+      w = canvas.width = window.innerWidth;
+      h = canvas.height = window.innerHeight;
+    }
+
+    function drawGrid(x0, y0, width, height) {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(17,24,39,0.08)';
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= 10; i++) {
+        const gx = x0 + (width / 10) * i;
+        ctx.beginPath();
+        ctx.moveTo(gx, y0);
+        ctx.lineTo(gx, y0 + height);
+        ctx.stroke();
+      }
+      for (let i = 0; i <= 8; i++) {
+        const gy = y0 + (height / 8) * i;
+        ctx.beginPath();
+        ctx.moveTo(x0, gy);
+        ctx.lineTo(x0 + width, gy);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function drawPanel(title, x, y, wPanel, hPanel, drawFn) {
+      ctx.save();
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = 'rgba(17,24,39,0.08)';
+      ctx.lineWidth = 1.2;
+      roundRect(ctx, x, y, wPanel, hPanel, 20);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#111827';
+      ctx.font = '600 16px Segoe UI';
+      ctx.fillText(title, x + 18, y + 28);
+      ctx.restore();
+      drawFn(x + 18, y + 46, wPanel - 36, hPanel - 58);
+    }
+
+    function roundRect(ctx, x, y, wPanel, hPanel, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.arcTo(x + wPanel, y, x + wPanel, y + hPanel, r);
+      ctx.arcTo(x + wPanel, y + hPanel, x, y + hPanel, r);
+      ctx.arcTo(x, y + hPanel, x, y, r);
+      ctx.arcTo(x, y, x + wPanel, y, r);
+      ctx.closePath();
+    }
+
+    function drawScaleFactorPlot(x, y, width, height) {
+      drawGrid(x, y, width, height);
+      const axes = { x: x + 20, y: y + height - 20 };
+      const scaleX = (v) => x + 20 + (v / 14) * (width - 40);
+      const scaleY = (v) => y + height - 20 - (v / 5.5) * (height - 40);
+
+      ctx.save();
+      ctx.strokeStyle = 'rgba(17,24,39,0.55)';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.moveTo(x + 20, y + height - 20);
+      ctx.lineTo(x + width - 20, y + height - 20);
+      ctx.moveTo(x + 20, y + 20);
+      ctx.lineTo(x + 20, y + height - 20);
+      ctx.stroke();
+      ctx.restore();
+
+      const points = [];
+      for (let i = 0; i <= 14; i++) {
+        const t = i / 14;
+        let a;
+        if (t < 0.25) a = Math.exp(7 * t);
+        else if (t < 0.6) a = Math.pow(1.2 + t * 4.3, 0.7);
+        else if (t < 0.85) a = Math.pow(1.4 + t * 9, 0.58);
+        else a = Math.exp(0.6 + 0.65 * (t - 0.85) * 8);
+        points.push({ x: scaleX(i), y: scaleY(a) });
+      }
+
+      ctx.save();
+      ctx.strokeStyle = '#2563eb';
+      ctx.lineWidth = 3.2;
+      ctx.beginPath();
+      points.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.save();
+      ctx.fillStyle = 'rgba(37, 99, 235, 0.12)';
+      ctx.beginPath();
+      points.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
+      ctx.lineTo(scaleX(14), y + height - 20);
+      ctx.lineTo(scaleX(0), y + height - 20);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+
+      const labels = ['الانفجار', 'الانكماش الأولي', 'الإشعاع', 'المادة', 'الطاقة المظلمة'];
+      labels.forEach((txt, idx) => {
+        const lx = x + 24 + (idx * (width - 48)) / (labels.length - 1);
+        ctx.fillStyle = '#111827';
+        ctx.font = '12px Segoe UI';
+        ctx.fillText(txt, lx - 24, y + 14);
+      });
+
+      ctx.fillStyle = '#111827';
+      ctx.font = '12px Segoe UI';
+      ctx.fillText('a(t)', x + width - 48, y + 14);
+      ctx.fillText('t', x + width - 32, y + height - 30);
+    }
+
+    function drawCMBPlot(x, y, width, height) {
+      drawGrid(x, y, width, height);
+      const axisX = x + 24;
+      const axisY = y + height - 24;
+      ctx.save();
+      ctx.strokeStyle = 'rgba(17,24,39,0.55)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(axisX, axisY);
+      ctx.lineTo(x + width - 10, axisY);
+      ctx.moveTo(axisX, y + 10);
+      ctx.lineTo(axisX, axisY);
+      ctx.stroke();
+      ctx.restore();
+
+      const points = [];
+      for (let i = 0; i <= 120; i++) {
+        const xVal = i / 120;
+        const freq = 0.6 + xVal * 2.8;
+        const temp = 1 + 0.15 * Math.sin(xVal * 6 + time * 0.6);
+        const intensity = Math.exp(-0.75 * Math.pow(freq - 1.2, 2)) * temp;
+        points.push({ x: axisX + xVal * (width - 40), y: axisY - intensity * (height - 44) * 0.8 });
+      }
+
+      ctx.save();
+      ctx.strokeStyle = '#0f766e';
+      ctx.lineWidth = 2.6;
+      ctx.beginPath();
+      points.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.save();
+      ctx.strokeStyle = '#dc2626';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(axisX, axisY - 60);
+      ctx.lineTo(axisX + width - 40, axisY - 60);
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.fillStyle = '#111827';
+      ctx.font = '12px Segoe UI';
+      ctx.fillText('طيف CMB', x + 8, y + 16);
+      ctx.fillText('ν', x + width - 30, axisY - 8);
+      ctx.fillText('Bν(T)', x + 8, y + 32);
+    }
+
+    function drawBaryonPlot(x, y, width, height) {
+      drawGrid(x, y, width, height);
+      const values = [0.3, 0.55, 0.82, 1.0, 0.7];
+      const colors = ['#2563eb', '#0ea5e9', '#14b8a6', '#f59e0b', '#dc2626'];
+      const labels = ['B', 'B̄', 'γ', 'CP', 'out-of-eq'];
+      const barW = (width - 70) / values.length;
+
+      values.forEach((v, i) => {
+        const bx = x + 24 + i * barW;
+        const bh = v * (height - 70);
+        ctx.save();
+        ctx.fillStyle = colors[i];
+        roundRect(ctx, bx, y + height - 24 - bh, barW - 12, bh, 10);
+        ctx.fill();
+        ctx.restore();
+        ctx.fillStyle = '#111827';
+        ctx.font = '11px Segoe UI';
+        ctx.fillText(labels[i], bx + 2, y + height - 8);
+      });
+
+      ctx.fillStyle = '#111827';
+      ctx.font = '12px Segoe UI';
+      ctx.fillText('عدم التماثل البايروني', x + 8, y + 16);
+      ctx.fillText('η ≈ 6×10^-10', x + width - 120, y + 16);
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, w, h);
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillRect(0, 0, w, h);
+
+      drawPanel('توسع الكون: a(t)', 52, 88, w - 620, h - 220, (x, y, width, height) => drawScaleFactorPlot(x, y, width, height));
+      drawPanel('طيف CMB', w - 520, 88, 430, 240, (x, y, width, height) => drawCMBPlot(x, y, width, height));
+      drawPanel('التحلل البايروني', 52, h - 300, w - 620, 180, (x, y, width, height) => drawBaryonPlot(x, y, width, height));
+
+      ctx.save();
+      ctx.strokeStyle = 'rgba(17,24,39,0.12)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(60, h - 86);
+      ctx.lineTo(w - 60, h - 86);
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.fillStyle = '#111827';
+      ctx.font = '600 14px Segoe UI';
+      ctx.fillText('مستوى تحليل كوني متقدم', 64, h - 102);
+      ctx.font = '13px Segoe UI';
+      ctx.fillStyle = '#4b5563';
+      ctx.fillText('التفاعل بين الديناميكيات الكونية، الإشعاع الحراري، وعدم التماثل البايروني يظهر بصريًا عبر طبقات متداخلة.', 64, h - 78);
+
+      time += 0.012;
+    }
+
+    function loop() {
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    window.addEventListener('resize', resize);
+    resize();
+    loop();
+  </script>
+</body>
+</html>
